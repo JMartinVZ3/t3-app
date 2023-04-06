@@ -9,8 +9,10 @@ dayjs.extend(relativeTime);
 
 import { type RouterOutputs, api } from "~/utils/api";
 import Image from "next/image";
-import { LoadingPage } from "~/components/loading";
+import { LoadingPage, LoadingSpinner } from "~/components/loading";
 import { useState } from "react";
+import toast from "react-hot-toast";
+import Link from "next/link";
 
 const CreatePostWizard = () => {
   const { user } = useUser();
@@ -23,6 +25,13 @@ const CreatePostWizard = () => {
     onSuccess: () => {
       setInput("");
       void ctx.posts.getAll.invalidate();
+    },
+    onError: (e) => {
+      const errorMessage = e.data?.zodError?.fieldErrors.content
+
+      if (errorMessage && errorMessage[0]) return toast.error(errorMessage[0])
+
+      return toast.error("Failed to post! Please try again later.");
     }
   });
 
@@ -44,8 +53,24 @@ const CreatePostWizard = () => {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         disabled={isPosting}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (input !== "") mutate({ content: input });
+          }
+        }}
       />
-      <button onClick={() => mutate({ content: input })}>Post</button>
+      {input !== "" && !isPosting && (
+        <button onClick={() => mutate({ content: input })}>
+          Post
+        </button>
+      )}
+
+      {isPosting && (
+      <div className="flex items-center justify-center">
+        <LoadingSpinner/>
+      </div>
+      )}
     </div>
   )
 }
@@ -67,13 +92,17 @@ const PostView = (props: PostWithUser) => {
       />
       <div className="flex flex-col">
         <div className="flex text-slate-300">
-          <span>
-            {`@${author.username} · ${dayjs(post.createdAt).fromNow()}`}
-          </span>
+          <Link href={`/@${author.username}`}>
+            <span>
+              {`@${author.username} · ${dayjs(post.createdAt).fromNow()}`}
+            </span>
+          </Link>
         </div>
-        <span className="text-2xl">
-          {post.content}
-        </span>
+        <Link href={`/post/${post.id}`}>
+          <span className="text-2xl">
+            {post.content}
+          </span>
+        </Link>
       </div>
      </div>
   )
